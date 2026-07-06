@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Descarte de Libros · PUCV Sistema de Bibliotecas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --navy-900:#0B1B33;
+    --navy-800:#12274A;
+    --navy-700:#1B3560;
+    --navy-600:#274678;
+    --gold:#C9A227;
+    --gold-bright:#E4BE4A;
+    --cream:#F6F4EE;
+    --paper:#FFFFFF;
+    --ink:#1B2430;
+    --ink-soft:#5B6472;
+    --line:#DDE1E7;
+    --line-soft:#EDEFF2;
+    --danger:#B23A3A;
+    --danger-bg:#FBEAEA;
+    --success:#2E6B4F;
+    --success-bg:#E8F3EC;
+    --radius:10px;
+    --shadow:0 1px 2px rgba(11,27,51,0.06), 0 4px 16px rgba(11,27,51,0.06);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--cream);color:var(--ink);font-family:'IBM Plex Sans',sans-serif;}
+  ::selection{background:var(--gold-bright);color:var(--navy-900);}
+
+  header.app-header{
+    background:linear-gradient(180deg,var(--navy-900) 0%, var(--navy-800) 100%);
+    color:var(--cream);
+    padding:22px 32px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom:3px solid var(--gold);
+  }
+  .brand{display:flex;align-items:center;gap:14px;}
+  .brand-mark{
+    width:38px;height:38px;border-radius:8px;
+    background:var(--gold);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'IBM Plex Mono',monospace;font-weight:700;color:var(--navy-900);
+    font-size:15px;
+  }
+  .brand-text h1{font-size:16px;margin:0;font-weight:600;letter-spacing:0.2px;}
+  .brand-text p{margin:2px 0 0;font-size:12px;color:#B9C4D6;font-family:'IBM Plex Mono',monospace;}
+  .header-stats{display:flex;gap:28px;}
+  .stat{text-align:right;}
+  .stat .n{font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:20px;color:var(--gold-bright);}
+  .stat .l{font-size:10.5px;color:#B9C4D6;text-transform:uppercase;letter-spacing:0.6px;}
+
+  .layout{display:grid;grid-template-columns:340px 1fr;gap:0;min-height:calc(100vh - 78px);}
+  aside.panel{
+    background:var(--navy-800);
+    color:var(--cream);
+    padding:24px 22px 40px;
+    border-right:1px solid var(--navy-700);
+  }
+  main.content{padding:24px 32px 60px;}
+
+  .side-section{margin-bottom:28px;}
+  .side-section h2{
+    font-size:11px;text-transform:uppercase;letter-spacing:0.8px;
+    color:var(--gold-bright);margin:0 0 12px;font-weight:600;
+  }
+  .upload-box{
+    border:1.5px dashed rgba(255,255,255,0.25);
+    border-radius:var(--radius);
+    padding:14px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+    background:rgba(255,255,255,0.02);
+  }
+  .upload-box:hover{border-color:var(--gold-bright);background:rgba(228,190,74,0.06);}
+  .upload-box input{display:none;}
+  .upload-box .ub-label{font-size:12.5px;color:#D7DEE9;}
+  .upload-box .ub-sub{font-size:10.5px;color:#8FA0B8;margin-top:4px;font-family:'IBM Plex Mono',monospace;}
+  .file-chip{
+    margin-top:8px;font-size:11.5px;font-family:'IBM Plex Mono',monospace;
+    background:rgba(46,107,79,0.25);color:#9FE0BE;
+    border:1px solid rgba(46,107,79,0.5);
+    border-radius:6px;padding:5px 8px;
+    display:flex;justify-content:space-between;align-items:center;gap:8px;
+  }
+  .file-chip.pending{background:rgba(255,255,255,0.05);color:#B9C4D6;border-color:rgba(255,255,255,0.15);}
+  .file-chip button{background:none;border:none;color:inherit;cursor:pointer;font-size:13px;opacity:0.7;}
+  .file-chip button:hover{opacity:1;}
+
+  /* --- Scanner console: signature element --- */
+  .scanner-console{
+    background:var(--navy-900);
+    border:1px solid var(--navy-600);
+    border-radius:var(--radius);
+    padding:14px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+  .scanner-console .sc-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .sc-dot{width:7px;height:7px;border-radius:50%;background:#3A4A63;transition:background .15s, box-shadow .15s;}
+  .sc-dot.live{background:var(--gold-bright);box-shadow:0 0 8px var(--gold-bright);}
+  .sc-row .sc-title{font-size:10.5px;text-transform:uppercase;letter-spacing:0.8px;color:#8FA0B8;}
+  .scanner-input{
+    width:100%;
+    background:#050D1C;
+    border:1px solid var(--navy-600);
+    border-radius:6px;
+    padding:10px 12px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:15px;
+    color:var(--gold-bright);
+    letter-spacing:1px;
+    outline:none;
+  }
+  .scanner-input:focus{border-color:var(--gold-bright);}
+  .scanner-input::placeholder{color:#41547A;letter-spacing:0.5px;}
+  .readout{
+    margin-top:10px;
+    min-height:52px;
+    border-radius:6px;
+    background:#050D1C;
+    border:1px solid var(--navy-600);
+    padding:8px 10px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    line-height:1.5;
+  }
+  .readout .r-ok{color:#9FE0BE;}
+  .readout .r-err{color:#F0A5A5;}
+  .readout .r-muted{color:#5B6E8C;}
+  .readout .r-title{color:#D7DEE9;display:block;}
+
+  .side-note{font-size:11px;color:#8FA0B8;margin-top:8px;line-height:1.5;}
+
+  /* Main content */
+  .toolbar{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:18px;flex-wrap:wrap;gap:12px;
+  }
+  .toolbar h2{margin:0;font-size:18px;font-weight:600;}
+  .toolbar .sub{font-size:12.5px;color:var(--ink-soft);margin-top:2px;}
+  .btn{
+    font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:13px;
+    padding:9px 16px;border-radius:8px;border:1px solid transparent;
+    cursor:pointer;transition:transform .05s, background .15s, border-color .15s;
+    display:inline-flex;align-items:center;gap:7px;
+  }
+  .btn:active{transform:scale(0.98);}
+  .btn-gold{background:var(--gold);color:var(--navy-900);}
+  .btn-gold:hover{background:var(--gold-bright);}
+  .btn-outline{background:transparent;border-color:var(--line);color:var(--ink);}
+  .btn-outline:hover{border-color:var(--navy-700);}
+  .btn-danger-text{background:transparent;border:none;color:var(--danger);font-size:12px;font-weight:500;cursor:pointer;padding:4px;}
+  .btn[disabled]{opacity:0.45;cursor:not-allowed;}
+
+  .table-wrap{
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    overflow:auto;
+  }
+  table{width:100%;border-collapse:collapse;font-size:13px;min-width:1080px;}
+  thead th{
+    position:sticky;top:0;background:var(--navy-800);color:#D7DEE9;
+    text-align:left;padding:11px 12px;font-size:10.5px;text-transform:uppercase;
+    letter-spacing:0.6px;font-weight:600;border-bottom:2px solid var(--gold);
+    white-space:nowrap;
+  }
+  thead th.auto::after{content:" ●";color:var(--gold-bright);font-size:8px;vertical-align:super;}
+  tbody td{padding:0;border-bottom:1px solid var(--line-soft);vertical-align:top;}
+  tbody tr:hover{background:#FAFAF7;}
+  tbody tr.dup{background:var(--danger-bg);}
+  td .cell-pad{padding:9px 10px;}
+  td input[type=text], td input[type=date], td input[type=number], td select, td textarea{
+    width:100%;border:1px solid transparent;background:transparent;
+    font-family:'IBM Plex Sans',sans-serif;font-size:13px;color:var(--ink);
+    padding:9px 10px;border-radius:6px;outline:none;
+  }
+  td textarea{resize:vertical;min-height:38px;font-family:'IBM Plex Sans',sans-serif;}
+  td input:focus, td select:focus, td textarea:focus{border-color:var(--gold);background:#FFFDF6;}
+  td.auto-cell input{background:#F4F6F8;color:var(--ink-soft);font-family:'IBM Plex Mono',monospace;font-size:12.5px;}
+  td.auto-cell input:focus{background:#F4F6F8;}
+  .col-inv{font-family:'IBM Plex Mono',monospace;white-space:nowrap;}
+  .row-del{width:36px;text-align:center;}
+  .row-del button{background:none;border:none;color:var(--ink-soft);cursor:pointer;font-size:15px;}
+  .row-del button:hover{color:var(--danger);}
+
+  .empty-state{
+    padding:60px 20px;text-align:center;color:var(--ink-soft);
+  }
+  .empty-state .es-icon{font-size:28px;margin-bottom:10px;}
+  .empty-state h3{margin:0 0 6px;font-size:15px;color:var(--ink);}
+  .empty-state p{margin:0;font-size:13px;max-width:420px;margin:0 auto;}
+
+  .legend{display:flex;gap:16px;margin-top:10px;font-size:11.5px;color:var(--ink-soft);}
+  .legend span{display:inline-flex;align-items:center;gap:5px;}
+  .legend .dot{width:6px;height:6px;border-radius:50%;background:var(--gold-bright);}
+
+  @media (max-width:900px){
+    .layout{grid-template-columns:1fr;}
+    aside.panel{border-right:none;border-bottom:1px solid var(--navy-700);}
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="brand">
+    <div class="brand-mark">PUCV</div>
+    <div class="brand-text">
+      <h1>Descarte de Libros</h1>
+      <p>Sistema de Bibliotecas · Ficha de baja bibliográfica</p>
+    </div>
+  </div>
+  <div class="header-stats">
+    <div class="stat"><div class="n" id="statTopo">0</div><div class="l">Topográfico</div></div>
+    <div class="stat"><div class="n" id="statRows">0</div><div class="l">Fichas registradas</div></div>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="panel">
+
+    <div class="side-section">
+      <h2>1 · Archivo topográfico</h2>
+      <label class="upload-box" id="topoBox">
+        <input type="file" id="topoInput" accept=".xlsx,.xls">
+        <div class="ub-label">Cargar archivo .xlsx</div>
+        <div class="ub-sub">Nº inventario · Título · Autor</div>
+      </label>
+      <div id="topoChip"></div>
+    </div>
+
+    <div class="side-section">
+      <h2>2 · Planilla de salida</h2>
+      <label class="upload-box" id="salidaBox">
+        <input type="file" id="salidaInput" accept=".xlsx,.xls">
+        <div class="ub-label">Cargar planilla existente</div>
+        <div class="ub-sub">opcional — o iniciar vacía</div>
+      </label>
+      <div id="salidaChip"></div>
+      <div class="side-note">Si no cargas una planilla, se inicia una nueva con las columnas requeridas.</div>
+    </div>
+
+    <div class="side-section">
+      <h2>3 · Escanear ficha</h2>
+      <div class="scanner-console">
+        <div class="sc-row">
+          <div class="sc-dot" id="scDot"></div>
+          <div class="sc-title">Lector de código de barras</div>
+        </div>
+        <input type="text" class="scanner-input" id="scannerInput"
+               placeholder="Esperando escaneo…" autocomplete="off">
+        <div class="readout" id="readout">
+          <span class="r-muted">Pistolea una ficha para comenzar. El cursor debe permanecer en este campo.</span>
+        </div>
+      </div>
+      <div class="side-note">Se busca el nº de inventario en el archivo topográfico y se completan Título, Autor e Inventario automáticamente.</div>
+    </div>
+
+  </aside>
+
+  <main class="content">
+    <div class="toolbar">
+      <div>
+        <h2>Planilla de descarte</h2>
+        <div class="sub">Título, Autor e Inventario se completan automáticamente (<span style="color:var(--gold);font-weight:600;">●</span>). Las demás columnas se completan manualmente.</div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-outline" id="addRowBtn">+ Fila manual</button>
+        <button class="btn btn-gold" id="exportBtn" disabled>Exportar Excel</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table id="outTable">
+        <thead>
+          <tr>
+            <th class="row-del"></th>
+            <th class="auto">Título</th>
+            <th class="auto">Autor</th>
+            <th>Existencias</th>
+            <th class="auto">Inventario</th>
+            <th>Fecha último préstamo</th>
+            <th>Motivo de descarte</th>
+            <th>Observación</th>
+          </tr>
+        </thead>
+        <tbody id="outBody"></tbody>
+      </table>
+      <div class="empty-state" id="emptyState">
+        <div class="es-icon">📖</div>
+        <h3>Aún no hay fichas registradas</h3>
+        <p>Carga el archivo topográfico y comienza a escanear, o agrega una fila manual.</p>
+      </div>
+    </div>
+    <div class="legend">
+      <span><span class="dot"></span> Columna autocompletada por escaneo</span>
+    </div>
+  </main>
+</div>
+
+<script>
+// ---------- State ----------
+let topoData = [];          // [{inv, titulo, autor}]
+let topoIndex = new Map();  // normalized inv -> row
+let rows = [];              // output rows
+let rowSeq = 0;
+
+const MOTIVOS = ["Obsolescencia de contenido","Deterioro físico","Duplicado","Baja demanda / sin uso","Pérdida","Otro"];
+
+// ---------- Helpers ----------
+function normHeader(h){
+  return String(h||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
+}
+function normInv(v){
+  return String(v==null?"":v).trim().toUpperCase().replace(/^0+(?=\d)/,"");
+}
+const ALIASES = {
+  inv: ["numeroinventario","ninventario","inventario","nrinventario","codigobarras","barcode","invnumber","itemnumber"],
+  titulo: ["titulo","title","tituloobra"],
+  autor: ["autor","author","autores"]
+};
+function matchAlias(headerNorm, list){
+  return list.some(a => headerNorm===a || headerNorm.includes(a));
+}
+
+function updateStats(){
+  document.getElementById("statTopo").textContent = topoData.length;
+  document.getElementById("statRows").textContent = rows.length;
+  document.getElementById("exportBtn").disabled = rows.length===0;
+}
+
+// ---------- Topográfico upload ----------
+document.getElementById("topoInput").addEventListener("change", function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt){
+    try{
+      const wb = XLSX.read(evt.target.result, {type:"array"});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(ws, {defval:""});
+      if(json.length===0) throw new Error("El archivo no contiene filas de datos.");
+      const headers = Object.keys(json[0]);
+      const colMap = {};
+      headers.forEach(h=>{
+        const n = normHeader(h);
+        if(!colMap.inv && matchAlias(n, ALIASES.inv)) colMap.inv = h;
+        if(!colMap.titulo && matchAlias(n, ALIASES.titulo)) colMap.titulo = h;
+        if(!colMap.autor && matchAlias(n, ALIASES.autor)) colMap.autor = h;
+      });
+      if(!colMap.inv || !colMap.titulo || !colMap.autor){
+        throw new Error("No se detectaron las columnas requeridas (Nº inventario, Título, Autor). Verifica los encabezados.");
+      }
+      topoData = json.map(r => ({
+        inv: r[colMap.inv],
+        titulo: r[colMap.titulo],
+        autor: r[colMap.autor]
+      })).filter(r => String(r.inv).trim()!=="");
+      topoIndex = new Map();
+      topoData.forEach(r => topoIndex.set(normInv(r.inv), r));
+
+      document.getElementById("topoChip").innerHTML =
+        `<div class="file-chip"><span>✓ ${file.name} · ${topoData.length} registros</span></div>`;
+      updateStats();
+      document.getElementById("scannerInput").focus();
+    }catch(err){
+      document.getElementById("topoChip").innerHTML =
+        `<div class="file-chip" style="background:rgba(178,58,58,0.2);color:#F0A5A5;border-color:rgba(178,58,58,0.4);">✕ ${err.message}</div>`;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+// ---------- Planilla de salida upload (optional, existing) ----------
+document.getElementById("salidaInput").addEventListener("change", function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt){
+    try{
+      const wb = XLSX.read(evt.target.result, {type:"array"});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(ws, {defval:""});
+      const headers = json.length? Object.keys(json[0]) : [];
+      const colMap = {};
+      const targets = {
+        titulo:["titulo"], autor:["autor"], existencias:["existencias","ejemplares","copias"],
+        inventario:["inventario","ninventario","numeroinventario"],
+        fecha:["fechaultimoprestamo","fechaprestamo","ultimoprestamo"],
+        motivo:["motivodescarte","motivo"],
+        observacion:["observacion","observaciones","nota","notas"]
+      };
+      headers.forEach(h=>{
+        const n = normHeader(h);
+        Object.keys(targets).forEach(k=>{
+          if(!colMap[k] && matchAlias(n, targets[k])) colMap[k]=h;
+        });
+      });
+      json.forEach(r=>{
+        rows.push({
+          id: ++rowSeq,
+          titulo: colMap.titulo? r[colMap.titulo] : "",
+          autor: colMap.autor? r[colMap.autor] : "",
+          existencias: colMap.existencias? r[colMap.existencias] : "",
+          inventario: colMap.inventario? r[colMap.inventario] : "",
+          fecha: colMap.fecha? r[colMap.fecha] : "",
+          motivo: colMap.motivo? r[colMap.motivo] : "",
+          observacion: colMap.observacion? r[colMap.observacion] : ""
+        });
+      });
+      document.getElementById("salidaChip").innerHTML =
+        `<div class="file-chip"><span>✓ ${file.name} · ${json.length} filas cargadas</span></div>`;
+      renderTable();
+    }catch(err){
+      document.getElementById("salidaChip").innerHTML =
+        `<div class="file-chip" style="background:rgba(178,58,58,0.2);color:#F0A5A5;border-color:rgba(178,58,58,0.4);">✕ No se pudo leer el archivo</div>`;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+// ---------- Scanner ----------
+const scannerInput = document.getElementById("scannerInput");
+const scDot = document.getElementById("scDot");
+const readout = document.getElementById("readout");
+
+scannerInput.addEventListener("focus", ()=> scDot.classList.add("live"));
+scannerInput.addEventListener("blur", ()=> scDot.classList.remove("live"));
+
+scannerInput.addEventListener("keydown", function(e){
+  if(e.key==="Enter"){
+    e.preventDefault();
+    const code = scannerInput.value.trim();
+    scannerInput.value = "";
+    if(!code) return;
+    handleScan(code);
+  }
+});
+
+function handleScan(code){
+  if(topoData.length===0){
+    readout.innerHTML = `<span class="r-err">✕ Carga primero el archivo topográfico.</span>`;
+    return;
+  }
+  const key = normInv(code);
+  const match = topoIndex.get(key);
+  if(!match){
+    readout.innerHTML = `<span class="r-err">✕ No encontrado: <b>${escapeHtml(code)}</b></span>`;
+    return;
+  }
+  const dupIdx = rows.findIndex(r => normInv(r.inventario)===key);
+  rows.push({
+    id: ++rowSeq,
+    titulo: match.titulo,
+    autor: match.autor,
+    existencias: "",
+    inventario: match.inv,
+    fecha: "",
+    motivo: "",
+    observacion: ""
+  });
+  readout.innerHTML = `
+    <span class="r-title">${escapeHtml(String(match.titulo))}</span>
+    <span class="r-ok">✓ ${escapeHtml(String(match.autor))} · Inv. ${escapeHtml(String(match.inv))}</span>
+    ${dupIdx>-1 ? '<br><span class="r-err">⚠ Ya existía una ficha con este inventario</span>' : ''}
+  `;
+  renderTable();
+  scannerInput.focus();
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// ---------- Table rendering ----------
+const outBody = document.getElementById("outBody");
+const emptyState = document.getElementById("emptyState");
+
+function renderTable(){
+  outBody.innerHTML = "";
+  emptyState.style.display = rows.length? "none":"block";
+  document.getElementById("outTable").style.display = rows.length? "table":"none";
+
+  // duplicate detection by inventario
+  const counts = {};
+  rows.forEach(r=>{
+    const k = normInv(r.inventario);
+    if(k) counts[k] = (counts[k]||0)+1;
+  });
+
+  rows.forEach(r=>{
+    const tr = document.createElement("tr");
+    const isDup = normInv(r.inventario) && counts[normInv(r.inventario)]>1;
+    if(isDup) tr.classList.add("dup");
+
+    tr.innerHTML = `
+      <td class="row-del"><button title="Eliminar fila" data-id="${r.id}">✕</button></td>
+      <td class="auto-cell"><input type="text" value="${attrEsc(r.titulo)}" data-id="${r.id}" data-field="titulo"></td>
+      <td class="auto-cell"><input type="text" value="${attrEsc(r.autor)}" data-id="${r.id}" data-field="autor"></td>
+      <td><input type="text" value="${attrEsc(r.existencias)}" data-id="${r.id}" data-field="existencias" placeholder="Nº ej."></td>
+      <td class="auto-cell col-inv"><input type="text" value="${attrEsc(r.inventario)}" data-id="${r.id}" data-field="inventario"></td>
+      <td><input type="date" value="${attrEsc(r.fecha)}" data-id="${r.id}" data-field="fecha"></td>
+      <td>${motivoSelect(r)}</td>
+      <td><textarea data-id="${r.id}" data-field="observacion" rows="1" placeholder="Observación…">${attrEsc(r.observacion)}</textarea></td>
+    `;
+    outBody.appendChild(tr);
+  });
+  updateStats();
+}
+
+function motivoSelect(r){
+  const custom = r.motivo && !MOTIVOS.includes(r.motivo);
+  let opts = `<option value="" ${!r.motivo?"selected":""}>— Seleccionar —</option>`;
+  MOTIVOS.forEach(m=>{
+    opts += `<option value="${attrEsc(m)}" ${r.motivo===m?"selected":""}>${m}</option>`;
+  });
+  opts += `<option value="__custom__" ${custom?"selected":""}>Otro (especificar)…</option>`;
+  let html = `<select data-id="${r.id}" data-field="motivo">${opts}</select>`;
+  if(custom){
+    html += `<input type="text" style="margin-top:4px;" value="${attrEsc(r.motivo)}" data-id="${r.id}" data-field="motivoCustom" placeholder="Especificar motivo">`;
+  }
+  return html;
+}
+
+outBody.addEventListener("input", function(e){
+  const t = e.target;
+  const id = Number(t.dataset.id);
+  const field = t.dataset.field;
+  if(!id || !field) return;
+  const row = rows.find(r=>r.id===id);
+  if(!row) return;
+  if(field==="motivoCustom"){
+    row.motivo = t.value;
+  }else{
+    row[field] = t.value;
+  }
+  if(field==="inventario" || field==="titulo" || field==="autor"){
+    renderTable(); // refresh duplicate highlighting / stats without losing focus badly
+  }
+});
+
+outBody.addEventListener("change", function(e){
+  const t = e.target;
+  if(t.tagName==="SELECT" && t.dataset.field==="motivo"){
+    const id = Number(t.dataset.id);
+    const row = rows.find(r=>r.id===id);
+    if(t.value==="__custom__"){
+      row.motivo = "";
+    }else{
+      row.motivo = t.value;
+    }
+    renderTable();
+  }
+});
+
+outBody.addEventListener("click", function(e){
+  if(e.target.matches("button[data-id]")){
+    const id = Number(e.target.dataset.id);
+    rows = rows.filter(r=>r.id!==id);
+    renderTable();
+  }
+});
+
+document.getElementById("addRowBtn").addEventListener("click", function(){
+  rows.push({id: ++rowSeq, titulo:"", autor:"", existencias:"", inventario:"", fecha:"", motivo:"", observacion:""});
+  renderTable();
+});
+
+function attrEsc(v){
+  return String(v==null?"":v).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+}
+
+// ---------- Export ----------
+document.getElementById("exportBtn").addEventListener("click", function(){
+  const data = rows.map(r=>({
+    "Título": r.titulo,
+    "Autor": r.autor,
+    "Existencias": r.existencias,
+    "Inventario": r.inventario,
+    "Fecha último préstamo": r.fecha,
+    "Motivo de descarte": r.motivo,
+    "Observación": r.observacion
+  }));
+  const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = [{wch:32},{wch:22},{wch:12},{wch:14},{wch:18},{wch:22},{wch:30}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Descarte");
+  const today = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `descarte_libros_${today}.xlsx`);
+});
+
+// ---------- Init ----------
+renderTable();
+scannerInput.focus();
+</script>
+</body>
+</html>
